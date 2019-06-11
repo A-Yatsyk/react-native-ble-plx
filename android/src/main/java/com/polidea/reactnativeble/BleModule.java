@@ -1,6 +1,7 @@
 package com.polidea.reactnativeble;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
@@ -12,9 +13,11 @@ import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
+import android.util.Log;
 import android.util.SparseArray;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -130,6 +133,96 @@ public class BleModule extends ReactContextBaseJavaModule {
             constants.put(event.name, event.name);
         }
         return constants;
+    }
+
+    // New BLE Module ------------------------------------------------------------------------------
+
+    @ReactMethod
+    public void descriptor(
+            String deviceId,
+            String bltServerUUID,
+            String writeDataUUID,
+            String readDataUUID,
+            String CLIENT_CHARACTERISTIC_CONFIG,
+            Callback callback
+    ) {
+        try {
+            final UUID serviceUUID = UUIDConverter.convert(bltServerUUID);
+            final UUID writeUUID = UUIDConverter.convert(writeDataUUID);
+            final UUID readUUID = UUIDConverter.convert(readDataUUID);
+            final UUID clientUUID = UUIDConverter.convert(CLIENT_CHARACTERISTIC_CONFIG);
+            if (serviceUUID == null | writeUUID == null | readUUID == null) {
+                throw new java.lang.Error("UUID not correct!");
+            }
+
+            final Device device = getDeviceOrReject(deviceId, null);
+//            final RxBleDevice device = rxBleClient.getBleDevice(deviceId);
+            if (device == null) {
+                throw new java.lang.Error("Device not found!");
+            }
+
+            final Service service = device.getServiceByUUID(serviceUUID);
+            if (service == null) {
+                throw new java.lang.Error("Service not found!");
+            }
+
+            final BluetoothGattService gattService = service.getNativeService();
+            if (gattService == null) {
+                throw new java.lang.Error("Service not found!");
+            }
+
+            final BluetoothGattCharacteristic readCharacteristic = gattService.getCharacteristic(readUUID);
+            final BluetoothGattCharacteristic writeCharacteristic = gattService.getCharacteristic(writeUUID);
+
+            if (readCharacteristic == null | writeCharacteristic == null) {
+                throw new java.lang.Error("Characteristic not found!");
+            }
+
+            BluetoothGattDescriptor descriptor = readCharacteristic.getDescriptor(clientUUID);
+
+            if (descriptor == null) {
+                throw new java.lang.Error("Descriptor not found!");
+            }
+
+            final RxBleConnection connection = device.getConnection();
+            if (connection == null) {
+                throw new java.lang.Error("Device disconnect!");
+            }
+
+//            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+//            connection.wri
+            connection.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+//            final RxBleConnection connectionN = getConnectionOrReject(device, null);
+//            connectionN.
+//            discoveredDevices.get(deviceId).getNativeDevice().getMacAddress()
+//            device.getNativeDevice().getAddress()
+//            rxBleClient.getBleDevice()
+//            device.writeDescriptor(descriptor);
+//            connection.writeDescriptor(descriptor);
+//            service.getDevice().getNativeDevice()
+//            final RxBleConnection connectionNext = getConnectionOrReject(device, null);
+
+//            connectionNext.writeDescriptor(descriptor);
+//            final Device deviceBle = discoveredDevices.get(deviceId);
+
+//            device.getClass().
+//            deviceBle.getNativeDevice().writeDescriptor(descriptor);
+
+//            final BluetoothGatt bleGatt = device
+//            final BluetoothGatt gatt = device.getNativeDevice();
+//            device.getNativeDevice()
+//                    .writeDescriptor(descriptor);
+//            if (gattDevice == null) {
+//                throw new java.lang.Error("Device disconnect!");
+//            }
+//
+//            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+//            gattDevice.writeDescriptor(descriptor);
+
+            callback.invoke(null, "WORK");
+        } catch (Exception e){
+            callback.invoke(e.toString(), null);
+        }
     }
 
     // Lifecycle -----------------------------------------------------------------------------------
@@ -1053,6 +1146,7 @@ public class BleModule extends ReactContextBaseJavaModule {
         if (connection == null) {
             return;
         }
+
         final Subscription subscription = connection
                 .writeCharacteristic(characteristic.getNativeCharacteristic(), value)
                 .doOnUnsubscribe(new Action0() {
